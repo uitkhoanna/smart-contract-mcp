@@ -1,0 +1,4 @@
+{
+  "source_code": "// SPDX-License-Identifier: MIT\npragma solidity ^0.6.0;\n\ncontract VulnerableBank {\n    mapping(address => uint256) public balances;\n    address public owner;\n\n    constructor() public {\n        owner = msg.sender;\n    }\n\n    function deposit() public payable {\n        balances[msg.sender] += msg.value;\n    }\n\n    function withdraw(uint256 amount) public {\n        require(balances[msg.sender] >= amount, \"insufficient\");\n        (bool success, ) = msg.sender.call{value: amount}(\"\");\n        balances[msg.sender] -= amount;\n        require(success, \"transfer failed\");\n    }\n\n    function emergencyWithdraw() public {\n        require(tx.origin == owner, \"not owner\");\n        selfdestruct(payable(owner));\n    }\n}\n",
+  "contract_name": "VulnerableBank"
+}
