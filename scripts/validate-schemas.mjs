@@ -11,7 +11,7 @@ const VULN_TYPES = [
   "timestamp_dependence",
   "tx_origin",
   "selfdestruct",
-] as const;
+];
 
 const AnalyzeContractArgs = z.object({
   source_code: z.string().min(1),
@@ -39,9 +39,10 @@ const CASES = [
   ["analyze_contract", AnalyzeContractArgs, { source_code: "pragma solidity ^0.8.0; contract C {}" }],
   ["analyze_contract (named)", AnalyzeContractArgs, { source_code: "pragma solidity ^0.8.0; contract C {}", contract_name: "C" }],
   ["check_vulnerability", CheckVulnerabilityArgs, { source_code: "x", vulnerability_type: "reentrancy" }],
+  ["check_vulnerability (every enum)", CheckVulnerabilityArgs, { source_code: "x", vulnerability_type: "selfdestruct" }],
   ["generate_audit_report", GenerateAuditReportArgs, { source_code: "x", contract_name: "C" }],
   ["suggest_fix", SuggestFixArgs, { source_code: "x", vulnerability_id: "reentrancy", vulnerability_name: "Reentrancy" }],
-] as const;
+];
 
 let ok = true;
 for (const [name, schema, sample] of CASES) {
@@ -50,7 +51,7 @@ for (const [name, schema, sample] of CASES) {
     console.log(`PASS: ${name}`);
   } catch (err) {
     ok = false;
-    console.error(`FAIL: ${name}`, err);
+    console.error(`FAIL: ${name}`, err.message ?? err);
   }
 }
 
