@@ -1,6 +1,11 @@
 // @ts-nocheck
 import * as parser from "@solidity-parser/parser";
-import type { FunctionCall, MemberAccess } from "@solidity-parser/parser/dist/src/ast-types";
+import type {
+  Expression,
+  FunctionCall,
+  MemberAccess,
+  NameValueExpression,
+} from "@solidity-parser/parser/dist/src/ast-types";
 import type { Vulnerability } from "../types";
 import type { DetectorContext } from "./context";
 
@@ -17,10 +22,8 @@ export function detectUncheckedCalls(ctx: DetectorContext): Vulnerability[] {
 
   parser.visit(ctx.ast, {
     FunctionCall(call: FunctionCall) {
-      const expr = call.expression;
-      if (expr.type !== "MemberAccess") return;
-      const member = expr.memberName;
-      if (!["call", "delegatecall", "staticcall", "send"].includes(member)) return;
+      const member = externalCallMember(call.expression);
+      if (!member) return;
       if (member === "transfer") return;
 
       const loc = ctx.loc(call);
@@ -42,4 +45,20 @@ export function detectUncheckedCalls(ctx: DetectorContext): Vulnerability[] {
   return findings;
 }
 
+function externalCallMember(expr: Expression): string | null {
+  if (expr.type === "MemberAccess") {
+    const m: MemberAccess = expr;
+    if (["call", "delegatecall", "staticcall", "send"].includes(m.memberName)) {
+      return m.memberName;
+    }
+    return null;
+  }
+  if (expr.type === "NameValueExpression") {
+    const n: NameValueExpression = expr;
+    return externalCallMember(n.expression);
+  }
+  return null;
+}
+
 export type { MemberAccess };
+

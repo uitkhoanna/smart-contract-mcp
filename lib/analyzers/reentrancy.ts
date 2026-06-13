@@ -4,9 +4,11 @@ import type {
   BaseASTNode,
   BinaryOperation,
   Block,
+  Expression,
   FunctionCall,
   FunctionDefinition,
   MemberAccess,
+  NameValueExpression,
 } from "@solidity-parser/parser/dist/src/ast-types";
 import type { Vulnerability } from "../types";
 import type { DetectorContext } from "./context";
@@ -64,21 +66,34 @@ function findExternalCall(stmt: BaseASTNode): FunctionCall | null {
   parser.visit(stmt, {
     FunctionCall(call: FunctionCall) {
       if (result) return;
-      const expr = call.expression;
-      if (expr.type !== "MemberAccess") return;
-      const member = expr.memberName;
-      if (
-        member === "call" ||
-        member === "delegatecall" ||
-        member === "staticcall" ||
-        member === "transfer" ||
-        member === "send"
-      ) {
+      const member = externalCallMember(call.expression);
+      if (member) {
         result = call;
       }
     },
   });
   return result;
+}
+
+function externalCallMember(expr: Expression): string | null {
+  if (expr.type === "MemberAccess") {
+    const m: MemberAccess = expr;
+    if (
+      m.memberName === "call" ||
+      m.memberName === "delegatecall" ||
+      m.memberName === "staticcall" ||
+      m.memberName === "transfer" ||
+      m.memberName === "send"
+    ) {
+      return m.memberName;
+    }
+    return null;
+  }
+  if (expr.type === "NameValueExpression") {
+    const n: NameValueExpression = expr;
+    return externalCallMember(n.expression);
+  }
+  return null;
 }
 
 function findStateWrite(stmt: BaseASTNode): BinaryOperation | null {
