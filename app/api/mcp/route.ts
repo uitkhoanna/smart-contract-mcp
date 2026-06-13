@@ -2,9 +2,17 @@ import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { analyze } from "@/lib/analyzers";
 import type { AnalysisResult, VulnerabilityId } from "@/lib/types";
+import {
+  evaluateContractQuality,
+  LlmConfigError,
+  LlmUpstreamError,
+  LlmSchemaError,
+} from "@/lib/llm-client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const QUALITY_FOCUS = ["overall", "security", "gas", "style", "docs"] as const;
 
 const VULN_TYPES = [
   "reentrancy",
@@ -177,6 +185,52 @@ const handler = createMcpHandler(
           return {
             content: [
               { type: "text" as const, text: JSON.stringify({ error: "parse_error", message }) },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    server.registerTool(
+      "evaluate_quality",
+      {
+        title: "Evaluate Contract Quality",
+        description:
+          "Use the Cysic-hosted minimax LLM to score a Solidity contract's quality (documentation, style, gas, error handling, best practices) and return a structured QualityReport. Requires CYSIC_API_KEY.",
+        inputSchema: {
+          source_code: z.string().min(1, "source_code must not be empty"),
+          contract_name: z.string().min(1).optional(),
+          focus: z.enum(QUALITY_FOCUS).optional(),
+        },
+      },
+      async ({ source_code, contract_name, focus }) => {
+        try {
+          const report = await evaluateContractQuality(
+            source_code,
+            contract_name,
+            focus ?? "overall",
+          );
+          return {
+            content: [
+              { type: "text" as const, text: JSON.stringify(report, null, 2) },
+            ],
+          };
+        } catch (err) {
+          // Surface the stable `code` from the bespoke LLM error classes so
+          // MCP clients can distinguish "not configured" from upstream faults.
+          let code = "internal_error";
+          if (
+            err instanceof LlmConfigError ||
+            err instanceof LlmUpstreamError ||
+            err instanceof LlmSchemaError
+          ) {
+            code = err.code;
+          }
+          const message = err instanceof Error ? err.message : String(err);
+          return {
+            content: [
+              { type: "text" as const, text: JSON.stringify({ error: code, message }) },
             ],
             isError: true,
           };

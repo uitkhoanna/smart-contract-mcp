@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "validate-schemas": "tsx scripts/validate-schemas.mjs"
+    "validate-schemas": "tsx scripts/validate-schemas.mjs",
+    "smoke-evaluate": "node scripts/smoke-evaluate.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
